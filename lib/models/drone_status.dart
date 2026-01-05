@@ -77,7 +77,8 @@ class DroneStatus extends Equatable {
   }
 
   bool get canStartMission {
-    return isArmed && (state == DroneState.armed || state == DroneState.idle);
+    // Allow starting mission regardless of armed state; server will validate.
+    return true;
   }
 
   bool get canArm {

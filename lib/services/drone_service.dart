@@ -14,16 +14,27 @@ class DroneService extends ChangeNotifier {
   DroneStatus get status => _status;
 
   void initialize(SocketService socketService) {
-    _socketService = socketService;
-    
-    // Listen to incoming messages from the Pi
-    _messageSubscription = _socketService!.messageStream.listen(_handleMessage);
+    // If already wired to a different socket service, rewire safely
+    if (_socketService != socketService) {
+      _messageSubscription?.cancel();
+      _socketService = socketService;
+      // Listen to incoming messages from the Pi
+      _messageSubscription = _socketService!.messageStream.listen(_handleMessage);
+    }
   }
+
+  // Stream controller for fire alerts
+  final StreamController<Map<String, dynamic>> _fireAlertController = 
+      StreamController<Map<String, dynamic>>.broadcast();
+  
+  Stream<Map<String, dynamic>> get fireAlertStream => _fireAlertController.stream;
 
   void _handleMessage(Map<String, dynamic> message) {
     try {
       // Handle different types of messages from the Pi
-      if (message.containsKey('status')) {
+      if (message.containsKey('fire_alert') && message['fire_alert'] == true) {
+        _handleFireAlert(message);
+      } else if (message.containsKey('status')) {
         _updateStatusFromMessage(message);
       } else if (message.containsKey('error')) {
         _handleError(message['error'].toString());
@@ -35,6 +46,11 @@ class DroneService extends ChangeNotifier {
     } catch (e) {
       _handleError('Error processing message: $e');
     }
+  }
+
+  void _handleFireAlert(Map<String, dynamic> message) {
+    // Emit fire alert to listeners
+    _fireAlertController.add(message);
   }
 
   void _updateStatusFromMessage(Map<String, dynamic> message) {
@@ -164,11 +180,6 @@ class DroneService extends ChangeNotifier {
       return false;
     }
 
-    if (!_status.canStartMission) {
-      _handleError('Cannot start mission: Drone must be armed first');
-      return false;
-    }
-
     _updateStatus(_status.copyWith(
       state: DroneState.inMission,
       message: 'Starting mission to (${coordinates.x}, ${coordinates.y})',
@@ -212,6 +223,7 @@ class DroneService extends ChangeNotifier {
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    _fireAlertController.close();
     super.dispose();
   }
 } 

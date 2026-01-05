@@ -9,10 +9,13 @@ class SocketService extends ChangeNotifier {
   bool _isConnected = false;
   String _connectionStatus = 'Disconnected';
   final List<String> _logs = [];
+  bool _reconnectInProgress = false;
+  bool _shouldReconnect = true;
   
   // Default Pi connection details
-  String _piHost = '192.168.0.103';
+  String _piHost = '192.168.100.92';
   int _piPort = 8765;
+  String _clientType = 'client';
 
   // Getters
   bool get isConnected => _isConnected;
@@ -20,6 +23,7 @@ class SocketService extends ChangeNotifier {
   List<String> get logs => List.unmodifiable(_logs);
   String get piHost => _piHost;
   int get piPort => _piPort;
+  String get clientType => _clientType;
 
   
   // Stream controller for receiving messages
@@ -34,7 +38,16 @@ class SocketService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setClientType(String type) async {
+    _clientType = type;
+    if (_isConnected) {
+      await sendCommand(Command.identify(clientType: _clientType));
+    }
+    notifyListeners();
+  }
+
   Future<bool> connect() async {
+    _shouldReconnect = true;
     if (_isConnected) {
       return true;
     }
@@ -48,6 +61,7 @@ class SocketService extends ChangeNotifier {
       _isConnected = true;
       _updateConnectionStatus('Connected');
       _addLog('Connected to Raspberry Pi');
+      _reconnectInProgress = false;
       
       // Listen for incoming messages
       _socket!.listen(
@@ -56,11 +70,15 @@ class SocketService extends ChangeNotifier {
         onDone: _onConnectionClosed,
       );
       
+      // Identify as current client type (client/admin)
+      await sendCommand(Command.identify(clientType: _clientType));
+      
       return true;
     } catch (e) {
       _isConnected = false;
       _updateConnectionStatus('Connection Failed');
       _addLog('Connection failed: $e');
+      _scheduleReconnect();
       return false;
     }
   }
@@ -82,6 +100,7 @@ class SocketService extends ChangeNotifier {
     _isConnected = false;
     _updateConnectionStatus('Error');
     disconnect();
+    _scheduleReconnect();
   }
 
   void _onConnectionClosed() {
@@ -89,6 +108,7 @@ class SocketService extends ChangeNotifier {
     _isConnected = false;
     _updateConnectionStatus('Disconnected');
     notifyListeners();
+    _scheduleReconnect();
   }
 
   Future<bool> sendCommand(Command command) async {
@@ -111,6 +131,7 @@ class SocketService extends ChangeNotifier {
   }
 
   void disconnect() {
+    _shouldReconnect = false;
     if (_socket != null) {
       _socket!.close();
       _socket = null;
@@ -135,6 +156,25 @@ class SocketService extends ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  void _scheduleReconnect() {
+    if (!_shouldReconnect || _reconnectInProgress || _isConnected) return;
+    _reconnectInProgress = true;
+    Future.delayed(const Duration(seconds: 5), () async {
+      if (!_shouldReconnect || _isConnected) {
+        _reconnectInProgress = false;
+        return;
+      }
+      final ok = await connect();
+      if (!ok) {
+        // allow another attempt
+        _reconnectInProgress = false;
+        _scheduleReconnect();
+      } else {
+        _reconnectInProgress = false;
+      }
+    });
   }
 
   void clearLogs() {

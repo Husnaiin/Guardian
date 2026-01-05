@@ -1,3 +1,5 @@
+import com.android.build.gradle.LibraryExtension
+
 allprojects {
     repositories {
         google()
@@ -19,6 +21,16 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    if (name == "flutter_foreground_task") {
+        plugins.withId("com.android.library") {
+            extensions.configure<LibraryExtension> {
+                namespace = "com.pravera.flutter_foreground_task"
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

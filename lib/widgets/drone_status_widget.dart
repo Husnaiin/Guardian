@@ -25,47 +25,52 @@ class DroneStatusWidget extends StatelessWidget {
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Drone Status',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      status.stateDisplayName,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: _getStatusColor(),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: status.isArmed ? Colors.green : Colors.grey,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        status.isArmed ? Icons.security : Icons.security_outlined,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
                       Text(
-                        status.isArmed ? 'ARMED' : 'DISARMED',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                        'Drone Status',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        status.stateDisplayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: _getStatusColor(),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
+                  ),
+                ),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: status.isArmed ? Colors.green : Colors.grey,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          status.isArmed ? Icons.security : Icons.security_outlined,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          status.isArmed ? 'ARMED' : 'DISARMED',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
