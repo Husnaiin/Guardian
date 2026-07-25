@@ -2,54 +2,30 @@
 
 **A GPS-denied autonomous firefighting drone.**
 
-Guardian flies, localizes, detects fire and drops suppressant **without a single satellite fix** — indoors, under canopy, and in urban canyons where GPS-guided aircraft simply cannot operate. Vision replaces GPS. A Raspberry Pi 4B replaces the ground station. A Flutter app in an operator's hand replaces the radio.
-
 <p align="left">
   <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.x-02569B?style=flat-square&logo=flutter&logoColor=white">
   <img alt="Dart" src="https://img.shields.io/badge/Dart-SDK_3.0+-0175C2?style=flat-square&logo=dart&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="Pi" src="https://img.shields.io/badge/Raspberry_Pi-4B-C51A4A?style=flat-square&logo=raspberrypi&logoColor=white">
   <img alt="Pixhawk" src="https://img.shields.io/badge/Pixhawk-2.4.8-2C3E50?style=flat-square">
-  <img alt="MAVLink" src="https://img.shields.io/badge/MAVLink-921600_baud-E8590C?style=flat-square">
+  <img alt="MAVLink" src="https://img.shields.io/badge/MAVLink-enabled-E8590C?style=flat-square">
   <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Auth_%2B_Firestore-FFCA28?style=flat-square&logo=firebase&logoColor=black">
-  <img alt="ONNX" src="https://img.shields.io/badge/ONNX_Runtime-CPU-005CED?style=flat-square">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green?style=flat-square">
 </p>
 
-📄 **[Full case study →](https://www.devlitix.com/case-study/guardian)** &nbsp;·&nbsp; 🔥 **[Fire detection model →](https://github.com/Husnaiin/Fire_Detector)**
+Guardian flies, localizes, detects fire and delivers suppressant without a single satellite fix — indoors, under canopy, and in urban canyons where GPS-guided aircraft cannot operate. Vision replaces GPS. A Raspberry Pi replaces the ground station. A phone in the operator's hand replaces the radio.
 
----
-
-## Table of Contents
-
-- [The problem](#the-problem)
-- [Results](#results)
-- [System architecture](#system-architecture)
-- [How a mission runs](#how-a-mission-runs)
-- [GPS-denied navigation](#gps-denied-navigation)
-- [Onboard fire detection](#onboard-fire-detection)
-- [Payload release and safety gating](#payload-release-and-safety-gating)
-- [Communication protocol](#communication-protocol)
-- [The mobile ground station](#the-mobile-ground-station)
-- [Hardware](#hardware)
-- [Repository layout](#repository-layout)
-- [Getting started](#getting-started)
-- [Configuration reference](#configuration-reference)
-- [Safety](#safety)
-- [Roadmap](#roadmap)
-- [Related repositories](#related-repositories)
-- [License](#license)
+[Case study](https://www.devlitix.com/case-study/guardian) &middot; [Fire detection model](https://github.com/Husnaiin/Fire_Detector)
 
 ---
 
 ## The problem
 
-Firefighting drones are sold on the promise of removing humans from the most dangerous part of the job. Then they meet reality:
+Firefighting drones are sold on the promise of removing people from the most dangerous part of the job. Then they meet reality.
 
-**GPS does not work where fires are most lethal to people.** Inside a warehouse, satellite signal is gone. Under dense forest canopy, it is attenuated and multipathed into uselessness. In an urban canyon between high-rises, reflections put the aircraft tens of metres from where it thinks it is. These are precisely the environments where you most want a machine to go instead of a person — and they are precisely where a GPS-guided drone will not hold position.
+GPS does not work where fires are most lethal to humans. Inside a warehouse, signal is gone. Under dense forest canopy it is attenuated and multipathed into uselessness. In an urban canyon, reflections place the aircraft tens of metres from where it believes it is. These are exactly the environments where a machine should go instead of a person, and exactly where a GPS-guided drone will not hold position. The conventional workaround — keeping a pilot in visual line of sight — puts a human back at the hazard boundary and caps response speed at how fast someone can reach the scene.
 
-Worse, the conventional workaround is to keep a human pilot in visual line of sight, which puts a person back at the hazard boundary and caps response speed at how fast someone can get on scene with a controller.
-
-**Guardian removes the satellite from the control loop entirely.** Position comes from the camera. The aircraft builds its own frame of reference from visual features, feeds a metric pose to the flight controller at EKF-acceptable rates, and navigates to coordinates in that self-built frame. A phone on the operator's belt receives telemetry and dispatches missions over Wi-Fi. No GPS lock is ever required, at any point in the flight.
+Guardian removes the satellite from the control loop entirely. Position comes from the camera. The aircraft builds its own frame of reference from visual features, feeds a metric pose to the flight controller at rates its state estimator will accept, and navigates to coordinates within that self-built frame. A mobile application receives telemetry and dispatches missions over a local wireless link. No GPS lock is required at any point in the flight.
 
 ---
 
@@ -57,70 +33,67 @@ Worse, the conventional workaround is to keep a human pilot in visual line of si
 
 | Metric | Result |
 |---|---|
-| Response time reduction vs. traditional methods | **60%** |
-| Coverage area | **10 km²** |
-| GPS-denied operation capability | **100%** |
-| Flight endurance | **45 minutes** |
+| Response time reduction versus traditional methods | 60% |
+| Coverage area | 10 km² |
+| GPS-denied operation capability | 100% |
+| Flight endurance | 45 minutes |
 
-**Technical milestones**
+Figures published in the [Guardian case study](https://www.devlitix.com/case-study/guardian).
 
-- ✅ SIFT + optical-flow visual localization feeding Pixhawk `VISION_POSITION_ESTIMATE`
-- ✅ Full MAVLink integration with Pixhawk 2.4.8 for hardware mission execution
-- ✅ Cross-platform Flutter ground station (Android + iOS) deployed
-- ✅ Multi-client Python TCP server with role-based access control, operational
-- ✅ Onboard CPU-only fire detection at 10 Hz, concurrent with navigation
-- ✅ GPIO servo suppressant release with temporal persistence gating
-- ✅ Firebase authentication and cloud synchronization
-- ✅ Android foreground service for persistent background monitoring
+---
 
-*Figures above are the published results from the [Guardian case study](https://www.devlitix.com/case-study/guardian).*
+## Capabilities
+
+- **GPS-denied flight.** Visual-inertial localization feeding the flight controller's state estimator, with no dependence on satellite positioning at any phase of the mission.
+- **Autonomous dispatch.** A coordinate selected on a map becomes an executed waypoint in the aircraft's own reference frame.
+- **Onboard fire detection.** CPU-only inference running concurrently with navigation, sharing a single camera stream.
+- **Vision-confirmed payload release.** Suppressant is released only on sustained visual confirmation, never on a single frame.
+- **Field sensor network.** Low-cost wireless nodes report fires by zone and wake the system without an operator present.
+- **Role-based command authority.** Full flight control for administrators; reporting and observation only for external clients.
+- **Persistent monitoring.** A background service keeps the alert pipeline alive when the application is not in the foreground.
+- **Failsafes throughout.** Abort, land and disarm are reachable from any mission state.
 
 ---
 
 ## System architecture
 
-Guardian is three cooperating subsystems: an **aircraft** that thinks for itself, a **phone** that commands it, and a **sensor network** that wakes it up.
+Guardian is three cooperating subsystems: an aircraft that thinks for itself, a phone that commands it, and a sensor network that wakes it up.
 
 ```mermaid
 flowchart TB
     subgraph FIELD["Field sensor network"]
-        ESP["ESP8266/ESP32 fire nodes<br/>4 × zone buttons<br/>auto-reconnecting TCP"]
+        ESP["Wireless fire nodes<br/>zone triggers<br/>auto-reconnecting"]
     end
 
     subgraph AIR["Aircraft"]
-        subgraph PI["Raspberry Pi 4B — companion computer"]
-            SRV["<b>drone_controller.py</b><br/>TCP server :8765<br/>role-based, multi-client<br/>JSON-lines protocol"]
-            VIO["<b>vio_sender.py</b><br/>thread orchestrator"]
-            VO["VO thread · 15 FPS<br/>SIFT + Lucas–Kanade"]
-            FIRE["Fire thread · 10 Hz<br/>YOLOv5n ONNX @ 320²"]
-            SERVO["Servo thread · 20 Hz<br/>persistence gate"]
-            NAV["<b>vio_navigation.py</b><br/>depth-resolved pose<br/>IMU cross-validation"]
+        subgraph PI["Raspberry Pi 4B - companion computer"]
+            SRV["Command server<br/>multi-client, role-based<br/>JSON over TCP"]
+            VO["Odometry thread<br/>feature tracking<br/>depth-resolved pose"]
+            FIRE["Fire detection thread<br/>ONNX inference on CPU"]
+            SERVO["Payload thread<br/>persistence gating"]
         end
-        CAM["Intel RealSense<br/>424×240 @ 15 FPS<br/>depth + colour"]
-        PX["<b>Pixhawk 2.4.8</b><br/>EKF · flight modes<br/>MAVLink @ 921600"]
-        TF["TFmini-S rangefinder"]
-        PAY["Suppressant servo<br/>GPIO 18 · pigpio PWM"]
+        CAM["Depth + colour camera"]
+        PX["Pixhawk 2.4.8<br/>state estimator<br/>flight modes"]
+        TF["Laser rangefinder"]
+        PAY["Suppressant release"]
     end
 
     subgraph GROUND["Ground"]
-        APP["<b>Flutter app</b><br/>Android · iOS<br/>foreground service"]
-        FB["Firebase<br/>Auth · Firestore"]
+        APP["Mobile ground station<br/>Android and iOS"]
+        FB["Firebase<br/>auth and sync"]
     end
 
     CAM --> VO
-    VO -->|"publish frame"| FIRE
-    VO --> NAV
-    NAV -->|"VISION_POSITION_ESTIMATE"| PX
+    VO -->|shared frames| FIRE
+    VO -->|vision position estimate| PX
     TF -->|altitude| PX
     FIRE --> SERVO
     SERVO --> PAY
-    VIO --- VO
-    VIO --- FIRE
-    VIO --- SERVO
-    SRV <--> VIO
-    PX <-->|"telemetry"| SRV
-    ESP -->|"Fire:LocationN"| SRV
-    SRV <-->|"JSON over TCP"| APP
+    SRV --- VO
+    SRV --- FIRE
+    PX -->|telemetry| SRV
+    ESP -->|fire alert| SRV
+    SRV <-->|commands and status| APP
     APP <--> FB
 
     style VO fill:#1f6feb,color:#fff
@@ -130,7 +103,7 @@ flowchart TB
     style SRV fill:#8250df,color:#fff
 ```
 
-Everything inside the Pi runs as **cooperating daemon threads sharing state behind fine-grained locks** — one lock per concern (`vio_lock`, `color_frame_lock`, `fire_data_lock`, `range_lock`, `yaw_lock`, `battery_lock`, `armed_lock`, `flight_mode_lock`). No thread ever holds a lock across an expensive operation, so the navigation loop is never blocked by inference, telemetry, or a slow client socket.
+Everything aboard the aircraft runs as cooperating daemon threads sharing state behind fine-grained locks, one per concern. No thread holds a lock across an expensive operation, so the navigation loop is never blocked by inference, by telemetry, or by a slow client connection.
 
 ---
 
@@ -138,175 +111,94 @@ Everything inside the Pi runs as **cooperating daemon threads sharing state behi
 
 ```mermaid
 sequenceDiagram
-    participant S as Fire sensor (ESP)
-    participant P as Pi TCP server
-    participant A as Admin app
+    participant S as Fire sensor
+    participant P as Command server
+    participant A as Operator app
     participant F as Flight stack
     participant V as Fire detector
 
-    S->>P: "Fire:Location3"
-    P->>P: resolve zone → (x, y) via sensor map
-    P->>A: fire_alert {x, y}
-    Note over A: Operator sees alert dialog
-    A->>P: {"command":"arm"}
-    P->>F: MAVLink arm
-    F-->>P: armed ✓
-    P-->>A: status: ARMED
-    A->>P: {"command":"start","x":…,"y":…}
-    P->>F: waypoint in VIO frame
-    P-->>A: status: ENROUTE
-    loop 10 Hz, entire flight
-        V->>V: infer on latest camera frame
+    S->>P: zone fire alert
+    P->>P: resolve zone to coordinates
+    P->>A: alert forwarded to administrator
+    A->>P: arm
+    P->>F: arm via flight controller
+    P-->>A: status armed
+    A->>P: dispatch to coordinates
+    P-->>A: status en route
+    loop continuously, entire flight
+        V->>V: inference on latest camera frame
     end
-    P-->>A: status: ARRIVED
-    V->>V: 10 consecutive detections ≥ 0.50
-    Note over V: persistence gate passed
-    V->>F: servo → 2000 µs, hold 6 s
-    P-->>A: status: SUPPRESSING
-    P-->>A: status: RETURNING → COMPLETE
+    P-->>A: status arrived
+    V->>V: sustained detection confirmed
+    V->>F: actuate payload release
+    P-->>A: status suppressing
+    P-->>A: returning, then complete
 ```
 
-The mission state machine is explicit and every transition is broadcast to connected clients:
-
-`IDLE → ARMING → ARMED → IN_MISSION → ENROUTE → ARRIVED → SUPPRESSING → RETURNING → COMPLETE`
-
-with `ERROR` and `ABORTING` reachable from any state. Status payloads carry `status`, `pose` `[x, y, z]`, `battery`, `armed`, `message` and an `errors` list — so the operator's screen is never guessing what the aircraft is doing.
+The mission state machine is explicit, and every transition is broadcast to connected clients: idle, arming, armed, in mission, en route, arrived, suppressing, returning, complete — with error and aborting reachable from any state. Status messages carry the current state, pose, battery level, arming status and any active errors, so the operator's screen is never guessing what the aircraft is doing.
 
 ---
 
 ## GPS-denied navigation
 
-This is the core of the system. [`pi_backend/vio_navigation.py`](pi_backend/vio_navigation.py) turns a depth + colour stream into a metric pose the Pixhawk EKF will accept.
+This is the core of the system. The onboard navigation module turns a depth and colour stream into a metric pose the flight controller's state estimator will accept.
 
-**The pipeline, per frame:**
+Scale- and rotation-invariant features are detected in each frame and tracked between frames by optical flow, running alongside descriptor matching rather than instead of it — two independent correspondence sources mean a tracking failure in one is caught by the other. Matched points are lifted into metric 3D using the aligned depth frame, with median filtering across a neighbourhood rather than a single-pixel depth read, because depth sensors produce speckle and holes and a naive read injects a corrupted point into the pose solve. The resulting correspondences yield translation and rotation, integrated into a running pose and streamed to the flight controller as a vision position estimate, where it fuses into the state estimator as the position source that GPS would otherwise provide.
 
-1. **Feature detection** — `cv2.SIFT_create(nfeatures=1000)`. SIFT is chosen over ORB deliberately: it is scale- and rotation-invariant, which matters enormously on an aircraft that changes altitude and yaw constantly. It costs more CPU than ORB, and that cost is paid for with the tight compute budget enforced everywhere else in the system.
-2. **Tracking** — Lucas–Kanade optical flow tracks features frame-to-frame, running *alongside* descriptor matching rather than instead of it. Two independent correspondence sources means a tracking failure in one is caught by the other.
-3. **Depth resolution** — matched 2D points are lifted to metric 3D using the aligned RealSense depth frame, with **median filtering over a neighbourhood** rather than a single-pixel depth read. Depth sensors produce speckle and holes; taking a median of valid depths rejects both instead of injecting a garbage 3D point into the pose solve.
-4. **Motion estimation** — the 3D correspondences give translation and rotation, integrated into a running pose in `[x_right, y_up, z_forward]` metres.
-5. **IMU cross-validation** *(optional, `IMUValidator`)* — bias-corrected accelerometer integration produces an independent velocity estimate with damping, and a vision-implied velocity that disagrees with it beyond tolerance is rejected. This is the guard against the classic visual-odometry failure mode: a featureless white wall or a sudden flash producing a large, confident, completely wrong jump.
-6. **Publication** — the pose is streamed to the Pixhawk as `VISION_POSITION_ESTIMATE` over MAVLink at 921600 baud, where it fuses into the EKF as the position source GPS would otherwise provide.
+An optional inertial cross-check guards the classic visual-odometry failure mode. Bias-corrected accelerometer integration produces an independent velocity estimate, and a vision-implied velocity that disagrees with it beyond tolerance is rejected — the defence against a featureless wall or a sudden flash producing a large, confident and entirely wrong jump.
 
-Selectable feature backends (`--feature_mode`): `sift` (SIFT + optical flow, default), `orb` (ORB + optical flow, cheaper), `optical_flow` (flow only, cheapest). Altitude is not trusted to vision at all — a **TFmini-S laser rangefinder** provides it directly, because ground clearance is the one number you never want a scale-ambiguous estimator to guess.
+Three feature backends are selectable, trading accuracy against processor load. Altitude is deliberately not trusted to vision at all; a laser rangefinder supplies it directly, because ground clearance is the one measurement that should never come from a scale-ambiguous estimator.
 
 ---
 
 ## Onboard fire detection
 
-The detector is a **[YOLOv5n model trained in a separate repository](https://github.com/Husnaiin/Fire_Detector)** and deployed here as a frozen ONNX graph. Its full training, evaluation and edge-export story lives there; what follows is how it is *integrated*.
+The detector is a compact single-class model trained in a [separate repository](https://github.com/Husnaiin/Fire_Detector) and deployed here as a frozen inference graph.
 
-**The constraint:** there is one camera, one CPU, no GPU, and the navigation loop must never be starved. So the detector does not open the camera — **it subscribes to frames the odometry thread publishes.**
+The constraint is severe: one camera, one processor, no GPU, and a navigation loop that must never be starved. So the detector does not open the camera. It subscribes to frames the odometry thread publishes into shared memory.
 
-```python
-# Producer: the VO thread. Publishes the newest colour frame; never waits.
-if self.fire_detection:
-    with self.color_frame_lock:
-        self.latest_color_frame = color_image.copy()
-```
+Rate decoupling makes this safe. The camera streams at fifteen frames per second and the odometry thread consumes every one of them, because dropping a frame breaks tracking continuity. The detector, watching a phenomenon that evolves over seconds rather than milliseconds, runs at ten hertz on latest-frame-wins semantics, free to skip frames the odometry cannot. The shared buffer's lock is held only for a memory copy and never across inference, so the producer is never blocked by the consumer. And the detector's rate limiter acts as a load governor, voluntarily returning the processor to navigation ten times a second rather than spinning at full occupancy.
 
-```python
-# Consumer: the fire thread. Copies under lock, releases, then infers.
-with self.color_frame_lock:
-    frame = self.latest_color_frame.copy()
-
-out = fire_ort_sess.run([fire_ort_out], {fire_ort_in: img})[0]
-...
-time.sleep(1.0 / max(0.1, self.fire_fps))   # load governor
-```
-
-Three properties make this safe on a Pi 4B:
-
-- **Rate decoupling.** The camera runs at 15 FPS and the odometry thread consumes *every* frame — dropping one breaks feature-tracking continuity. The detector runs at **10 Hz** on **latest-frame-wins** semantics: it may skip frames freely, because fire evolves over seconds, not milliseconds.
-- **The lock is held for a `memcpy` only** — never across inference. The producer is never blocked by the consumer.
-- **The `time.sleep()` rate limiter is the load governor.** It voluntarily returns the core to navigation ten times a second instead of spinning at 100% and starving the EKF feed.
-
-Inference runs on **ONNX Runtime `CPUExecutionProvider`** — no PyTorch, no Ultralytics in the flight path. Pre-processing (BGR→RGB, resize to 320×320, `/255`, HWC→CHW) and greedy **NMS at IoU 0.45** are hand-written in NumPy against a fixed static-shape contract. Detection state is *published* behind `fire_data_lock` and polled by the servo controller and telemetry broadcaster, so no consumer is coupled to inference timing.
-
-An Ultralytics `.pt` path exists as a bench-development fallback (`--fire_model_path` ending in `.pt`), and `--fire_window_visualization` renders annotated frames for ground testing — **never enable it in flight; the render steals the core.**
+Inference runs on a CPU execution provider with no training framework in the flight path, and detection state is published behind its own lock for the payload controller and telemetry broadcaster to poll — so no consumer is coupled to inference timing. A development fallback path and an annotated visualization mode exist for bench testing; the visualization must never be enabled in flight, because the render consumes the core navigation depends on.
 
 ---
 
 ## Payload release and safety gating
 
-Suppressant is single-shot and irreversible. The release logic reflects that.
+Suppressant is single-shot and irreversible, and the release logic reflects that.
 
-The servo thread runs at 20 Hz and requires **`servo_persist_frames` consecutive detections** at or above `servo_trigger_threshold` before it actuates. At the default of 10 detections and 10 Hz inference, that is **roughly one full second of unbroken agreement** that fire is present.
+The payload thread requires a run of consecutive detections above threshold before it actuates — roughly a full second of unbroken agreement at the default configuration — and the counter resets completely on a single non-detection. A single high-confidence frame is not a fire. It is sun glare off a windshield, a red jacket, a brake light, a reflection off water. Any of those can produce a confident detection for one frame, and none should cost the mission its payload. Only sustained evidence actuates hardware.
 
-```python
-if fire_now:
-    consecutive += 1
-else:
-    consecutive = 0                     # any miss resets the counter
-
-if consecutive >= int(self.servo_persist_frames):
-    active_until = now + float(self.servo_hold_time)
-    consecutive = 0
-    print("== FIRE PERSISTENT: ACTIVATING SERVO ==")
-```
-
-**Why the gate exists.** A single high-confidence frame is not a fire. It is a sun glare off a windshield, a red jacket, a brake light, a hot reflection off water. Any one of those can produce a confident detection for one frame — and none of them should cost the mission its payload. The counter resets completely on a single non-detection, so only *sustained* evidence actuates hardware.
-
-PWM is generated by **`pigpio`**, not software timing: idle at **1000 µs**, active at **2000 µs**, held for **6 s** by default. `pigpio` uses DMA-driven hardware timing, so servo pulses stay clean even while both vision pipelines are loading the CPU — software PWM would jitter under exactly this load and could mis-drive the release. The daemon must be running (`sudo pigpiod`); if it is not, the servo subsystem disables itself and logs a warning rather than failing silently or pretending to arm.
+Servo pulses are generated by DMA-driven hardware timing rather than software loops, so they stay clean while both vision pipelines load the processor — software timing would jitter under exactly this load and could mis-drive the release. If the timing daemon is unavailable the payload subsystem disables itself and logs a warning rather than failing silently or pretending to be armed.
 
 ---
 
-## Communication protocol
+## Communication
 
-A **newline-delimited JSON protocol over raw TCP**, served on port `8765` by [`pi_backend/drone_controller.py`](pi_backend/drone_controller.py). Raw TCP rather than HTTP or MQTT: no broker to keep alive, no request/response overhead per telemetry tick, and a socket whose liveness is directly observable — which is what you want over an ESP-hosted Wi-Fi hotspot in an emergency.
+A newline-delimited JSON protocol over raw TCP, served by the onboard command server. Raw TCP rather than HTTP or a message broker: nothing extra to keep alive, no per-message request overhead on a continuous telemetry stream, and a connection whose liveness is directly observable — which is what matters over a field wireless link in an emergency.
 
-**Role-based access control.** Clients identify themselves on connect, and the server tracks each socket's role:
+Clients identify their role on connection, and the server enforces it.
 
-| Role | Capability |
+| Role | Authority |
 |---|---|
-| `admin` | Full flight authority — arm, dispatch, loiter, land, abort, mapping, recording |
-| `external_client` | Report fires and observe status. **Cannot fly the aircraft.** |
+| Administrator | Full flight authority — arm, dispatch, loiter, land, abort, mapping, recording |
+| External client | Report fires and observe status. Cannot fly the aircraft. |
 
-Fire alerts from external clients are **forwarded to every connected admin** rather than acted on automatically — a human authorizes flight.
+Fire alerts from external clients are forwarded to every connected administrator rather than acted on automatically. A human authorizes flight.
 
-**Commands**
+The command surface covers identification, arming and disarming, coordinate dispatch, fire alerting, loiter with altitude and duration, landing, mission abort, state-estimator health checks, map building and persistence, onboard recording, and sensor-zone rebinding.
 
-| Command | Payload | Effect |
-|---|---|---|
-| `identify` | `client_type` | Register role for this socket |
-| `arm` / `disarm` | — | MAVLink arm/disarm, confirmed by readback |
-| `start` | `x`, `y` | Dispatch to coordinates in the VIO frame |
-| `fire_alert` | `x`, `y` | Report a fire; broadcast to admins |
-| `loiter` | `altitude`, `duration` | Hold position at altitude |
-| `land` | — | Controlled descent |
-| `abort` | — | Immediate mission abort |
-| `check_ekf` | — | Query EKF health before committing to flight |
-| `build_map` / `save_map` / `load_map` | — | VIO map lifecycle |
-| `start_record` / `stop_record` | — | Onboard video capture |
-| `update_sensor_map` | `sensor_map` | Rebind sensor zones → coordinates |
-
-**Plain-text fire tokens.** The ESP nodes are microcontrollers with no JSON serializer, so the server also accepts bare tokens like `Fire:Location3` and resolves them against the sensor map into coordinates. A four-button ESP8266 sketch ([`pi_backend/fire_client.ino`](pi_backend/fire_client.ino)) implements this, with **periodic Wi-Fi and TCP reconnection loops** — a field node that loses the hotspot must rejoin unattended, so reconnection is checked every 2 s and 3 s respectively rather than assumed.
+The field nodes are microcontrollers with no JSON serializer, so the server also accepts bare zone tokens and resolves them against the sensor map into coordinates. Those nodes run continuous wireless and connection recovery loops, because a field node that loses the link must rejoin unattended rather than assume it is still connected.
 
 ---
 
-## The mobile ground station
+## Mobile ground station
 
-A Flutter app targeting **Android and iOS** from one codebase — because in an emergency you use the phone that is in your pocket.
+A Flutter application targeting Android and iOS from one codebase, because in an emergency you use the phone already in your pocket.
 
-**Screens** — login / signup (Firebase Auth, Google and Facebook sign-in), admin home with live telemetry, client home, coordinate input with map selection, mission status.
+The interface covers authentication with federated sign-in, an administrator console with live telemetry, a client view, map-based coordinate selection, and mission status. Individual controls map to real operational needs: connection state, live pose and battery, arm and dispatch, tap-to-dispatch mapping, state-estimator health checks before committing to flight, loiter and controlled landing, an interrupting dialog when a sensor node reports fire, in-field sensor zone binding, notification routing, and onboard video capture.
 
-**Widgets, each mapped to a real operational need**
-
-| Widget | Purpose |
-|---|---|
-| `connection_widget` | Socket state — the first thing an operator must be able to trust |
-| `drone_status_widget` | Live state, pose, battery, errors |
-| `control_buttons_widget` | Arm, dispatch, abort |
-| `map_control_widget` | Tap-to-dispatch coordinate selection |
-| `check_ekf_widget` | EKF health **before** committing to flight |
-| `loiter_land_widget` | Altitude/duration hold and controlled landing |
-| `fire_alert_dialog` | Interrupting alert when a sensor node reports fire |
-| `sensor_mapping_card` | Bind sensor zones to coordinates in the field |
-| `admin_push_settings_card` | Notification routing control |
-| `video_record_widget` | Start/stop onboard capture |
-
-**Background operation** is treated as a hard requirement, not a nicety. [`lib/foreground_service.dart`](lib/foreground_service.dart) with `flutter_foreground_task` keeps the socket and alert pipeline alive when the app is not in the foreground, and `flutter_local_notifications` surfaces fire alerts through a locked screen. An operator who misses an alert because Android killed a background socket is an operator who was not warned — so the service is explicitly foregrounded and survives.
-
-**Stack:** `provider` + `flutter_bloc` for state, `equatable` for value semantics, `firebase_core` / `firebase_auth` / `cloud_firestore` for identity and sync, `shared_preferences` for local persistence.
+Background operation is treated as a hard requirement rather than a convenience. A foreground service keeps the connection and alert pipeline alive when the application is not in view, and local notifications surface fire alerts through a locked screen. An operator who misses an alert because the platform killed a background connection is an operator who was not warned.
 
 ---
 
@@ -314,135 +206,62 @@ A Flutter app targeting **Android and iOS** from one codebase — because in an 
 
 | Component | Part | Role |
 |---|---|---|
-| Flight controller | **Pixhawk 2.4.8** | EKF, flight modes, actuator output |
-| Companion computer | **Raspberry Pi 4B** | Vision, fire detection, TCP server |
-| Camera | **Intel RealSense** (424×240 @ 15 FPS) | Depth + colour for VIO and detection |
-| Rangefinder | **TFmini-S** | Direct altitude / ground clearance |
-| Link | **ESP32 / ESP8266** | Wi-Fi hotspot, field fire-alert nodes |
+| Flight controller | Pixhawk 2.4.8 | State estimation, flight modes, actuator output |
+| Companion computer | Raspberry Pi 4B | Vision, fire detection, command server |
+| Camera | Intel RealSense | Depth and colour for navigation and detection |
+| Rangefinder | TFmini-S laser | Direct altitude and ground clearance |
+| Wireless | ESP32 / ESP8266 | Field hotspot and fire-alert nodes |
 | Airframe | Multi-rotor quadcopter | 45-minute endurance class |
-| Power | Lithium-polymer pack | Flight + Pi + payload |
-| Payload | GPIO servo (**GPIO 18**, `pigpio` PWM) | Suppressant release |
-| Serial | MAVLink over `/dev/ttyACM0` @ **921600** | Pi ↔ Pixhawk |
+| Power | Lithium-polymer pack | Flight, computer and payload |
+| Payload | GPIO servo, hardware-timed PWM | Suppressant release |
+| Link | MAVLink over serial | Companion computer to flight controller |
 
 ---
 
 ## Repository layout
 
-```
-Guardian/
-├── lib/                              # Flutter ground station
-│   ├── main.dart
-│   ├── foreground_service.dart       # persistent background monitoring
-│   ├── models/                       # command, coordinates, drone_status
-│   ├── screens/                      # login, signup, home, client, coords, mission
-│   ├── services/
-│   │   ├── socket_service.dart       # TCP client, JSON-lines protocol
-│   │   ├── drone_service.dart        # command dispatch + telemetry state
-│   │   ├── notification_service.dart # local notifications for alerts
-│   │   └── sensor_map_service.dart   # zone → coordinate bindings
-│   └── widgets/                      # telemetry, controls, alerts, mapping
-│
-├── pi_backend/                       # Onboard (Raspberry Pi 4B)
-│   ├── drone_controller.py           # TCP server, roles, mission state machine
-│   ├── vio_sender.py                 # thread orchestrator: VO · fire · servo · MAVLink
-│   ├── vio_navigation.py             # SIFT + optical flow + depth → metric pose
-│   ├── fire_client.ino               # ESP8266 field fire-alert node
-│   └── requirements.txt
-│
-├── setup.sh / setup.bat              # guided environment setup
-└── pubspec.yaml
-```
+| Path | Contents |
+|---|---|
+| `lib/` | Flutter ground station |
+| `lib/models/` | Command, coordinate and drone status models |
+| `lib/screens/` | Authentication, administrator and client consoles, coordinate input, mission status |
+| `lib/services/` | Socket client, command dispatch and telemetry, notifications, sensor-zone mapping |
+| `lib/widgets/` | Telemetry, flight controls, alerts, mapping and recording controls |
+| `lib/foreground_service.dart` | Persistent background monitoring |
+| `pi_backend/drone_controller.py` | Command server, role enforcement, mission state machine |
+| `pi_backend/vio_sender.py` | Thread orchestrator for navigation, detection, payload and flight-controller links |
+| `pi_backend/vio_navigation.py` | Feature tracking and depth-resolved pose estimation |
+| `pi_backend/fire_client.ino` | Field fire-alert node firmware |
+| `setup.sh`, `setup.bat` | Guided environment setup |
 
-> **Note:** `guardian_app/` contains an earlier nested copy of the Flutter project retained for history. The active app is the top-level `lib/` + `pubspec.yaml`.
+The `guardian_app/` directory contains an earlier nested copy of the Flutter project retained for history. The active application is the top-level `lib/` and `pubspec.yaml`.
 
 ---
 
 ## Getting started
 
-### 1. Mobile app
+**Mobile application.** Clone the repository, fetch Flutter dependencies and run against a connected device. The guided setup scripts handle dependency checks and device selection on both Unix and Windows hosts. Firebase requires your own project credentials for each platform, with email, Google and Facebook providers enabled in the console.
 
-```bash
-git clone https://github.com/Husnaiin/Guardian.git
-cd Guardian
+**Onboard backend.** Install the Python dependencies on the Raspberry Pi along with the flight-controller, camera, vision and inference runtimes, and start the hardware timing daemon used for servo control. Deploy the exported detection model from the [Fire_Detector](https://github.com/Husnaiin/Fire_Detector) repository to the model path the backend expects.
 
-flutter pub get
-flutter devices
-flutter run
-```
+**Launch.** Starting the command server brings up the full stack and begins listening for client connections. The navigation and detection stack can also be launched directly for bench testing, with navigation, detection, payload control and flight-controller connection each independently enabled or disabled. If the vision or flight-controller hardware is unavailable the backend falls back to simulation mode automatically, so the application and protocol can be developed on a desktop.
 
-Or use the guided script: `./setup.sh` (Linux/macOS) · `setup.bat` (Windows).
-
-Firebase: supply your own `android/app/google-services.json` and iOS `GoogleService-Info.plist`, and enable **Email/Password**, **Google** and **Facebook** providers in the Firebase console.
-
-### 2. Raspberry Pi backend
-
-```bash
-# On the Pi
-pip install -r pi_backend/requirements.txt
-pip install pymavlink pyrealsense2 opencv-python numpy onnxruntime pigpio
-
-sudo pigpiod                      # hardware-timed servo PWM
-```
-
-Deploy the fire model from **[Fire_Detector](https://github.com/Husnaiin/Fire_Detector)**:
-
-```bash
-scp best.onnx guardian@<pi>:/home/guardian/Desktop/capture_depth/fire_model/best.onnx
-```
-
-### 3. Launch the aircraft stack
-
-```bash
-python pi_backend/drone_controller.py        # TCP server on :8765
-```
-
-Or run the vision/flight stack directly for bench testing:
-
-```bash
-python pi_backend/vio_sender.py \
-  --pixhawk true \
-  --pixhawk_device /dev/ttyACM0 \
-  --pixhawk_baud 921600 \
-  --fire_detection true \
-  --fire_model_path /home/guardian/Desktop/capture_depth/fire_model/best.onnx \
-  --fire_threshold 0.50 \
-  --fire_fps 10 \
-  --fire_imgsz 320 \
-  --servo_enable true \
-  --servo_gpio 18 \
-  --servo_persist_frames 10 \
-  --servo_hold_time 6.0
-```
-
-The backend runs in **simulation mode** automatically if `VIOSender` cannot initialize (no camera or no Pixhawk attached), so the app and protocol can be developed on a desktop.
-
-### 4. Field nodes
-
-Flash [`pi_backend/fire_client.ino`](pi_backend/fire_client.ino) to an ESP8266, set `ssid` / `password` / `serverHost` / `serverPort` to match the drone's hotspot, and wire four buttons to `D1`–`D4` as zone triggers.
+**Field nodes.** Flash the node firmware to a wireless microcontroller, configure it with the aircraft's hotspot credentials and server address, and wire zone trigger buttons to the designated pins.
 
 ---
 
-## Configuration reference
+## Configuration
 
-| Flag | Default | Description |
-|---|---|---|
-| `--pixhawk` | `true` | Enable MAVLink connection |
-| `--pixhawk_device` | `/dev/ttyACM0` | Serial device |
-| `--pixhawk_baud` | `921600` | Serial baud rate |
-| `--fire_detection` | `false` | Enable the detector thread |
-| `--fire_model_path` | `.../fire_model/best.onnx` | `.onnx` → ONNX Runtime; `.pt` → Ultralytics (dev) |
-| `--fire_threshold` | `0.50` | Detection confidence floor |
-| `--fire_fps` | `10.0` | **Load governor** — raise it and you spend navigation headroom |
-| `--fire_imgsz` | `320` | Must match the exported model resolution |
-| `--fire_persist_frames` | `2` | Temporal smoothing on reported detection state |
-| `--fire_window_visualization` | `false` | Bench debug only — **never in flight** |
-| `--servo_enable` | `false` | Enable payload release |
-| `--servo_gpio` | `18` | BCM pin (or `--servo_physical_pin` for board numbering) |
-| `--servo_trigger_threshold` | = `fire_threshold` | Confidence required to count toward the gate |
-| `--servo_persist_frames` | `10` | **Consecutive detections required to actuate** |
-| `--servo_hold_time` | `6.0` | Seconds the release is held open |
-| `--servo_active_pw` / `--servo_idle_pw` | `2000` / `1000` µs | Servo pulse widths |
-| `--visualize_odom` | `false` | Odometry visualization (bench only) |
+Runtime behaviour is configured through command-line options on the onboard stack, grouped by subsystem.
+
+| Group | Controls |
+|---|---|
+| Flight controller | Connection enable, serial device, baud rate |
+| Fire detection | Enable, model path, confidence threshold, inference rate, input size, temporal smoothing |
+| Payload | Enable, GPIO pin selection, trigger threshold, persistence frames, hold duration, pulse widths |
+| Diagnostics | Odometry and detection visualization, for bench use only |
+
+The inference rate is the primary load governor. Raising it spends headroom the navigation loop depends on, and it should be treated as a flight-safety parameter rather than a tuning knob.
 
 ---
 
@@ -450,24 +269,24 @@ Flash [`pi_backend/fire_client.ino`](pi_backend/fire_client.ino) to an ESP8266, 
 
 This is a flying machine that carries a payload and actuates hardware from a model's output. Treat it accordingly.
 
-- **Human-in-the-loop by design.** Fire alerts are forwarded to an admin, not auto-flown. Only `admin` clients can arm or dispatch.
-- **Failsafes are first-class commands** — `abort`, `land` and `disarm` are available from any state, surfaced as dedicated controls in the app.
-- **Check EKF health before committing.** `check_ekf` exists precisely because a vision-fed EKF that has not converged must not be flown.
-- **Never enable visualization flags in flight.** They consume the core the navigation loop depends on.
-- **Test the release on the bench first,** with `--servo_enable true` and `--pixhawk false`, before any payload is loaded on an airframe.
-- **Comply with local UAS regulations.** Autonomous BVLOS flight is restricted or prohibited in many jurisdictions.
+- Fire alerts are forwarded to an operator, not auto-flown. Only administrators can arm or dispatch.
+- Abort, land and disarm are first-class commands available from any mission state and surfaced as dedicated controls.
+- Verify state-estimator health before committing to flight. A vision-fed estimator that has not converged must not be flown.
+- Never enable visualization options in flight; they consume the core the navigation loop depends on.
+- Test payload release on the bench, with the flight-controller link disabled, before loading suppressant on an airframe.
+- Comply with local unmanned aircraft regulations. Autonomous flight beyond visual line of sight is restricted or prohibited in many jurisdictions.
 
 ---
 
 ## Roadmap
 
-- [ ] INT8 quantization of the fire model for additional CPU headroom (see [Fire_Detector](https://github.com/Husnaiin/Fire_Detector))
-- [ ] Loop closure and drift correction in the VIO frame for longer missions
-- [ ] Fuse detections with VIO pose to emit **geolocated** fire coordinates, not image-space boxes
-- [ ] Smoke detection as an early-warning class — smoke is visible before flame from altitude
-- [ ] Multi-drone coordination over the same TCP server
-- [ ] Onboard mission recording and post-flight replay in the app
-- [ ] TLS on the control channel
+- Quantized fire detection for additional processor headroom
+- Loop closure and drift correction for longer missions in the visual reference frame
+- Geolocated fire coordinates fused from detection and pose, rather than image-space boxes
+- Smoke detection as an early-warning class, since smoke is visible before flame from altitude
+- Multi-drone coordination across a shared command server
+- Onboard mission recording with post-flight replay in the application
+- Transport encryption on the control channel
 
 ---
 
@@ -475,34 +294,34 @@ This is a flying machine that carries a payload and actuates hardware from a mod
 
 | Repository | Role |
 |---|---|
-| **Husnaiin/Guardian** *(this repo)* | Flight system — Flutter ground station, Pi backend, VIO navigation, MAVLink integration, payload control |
-| **[Husnaiin/Fire_Detector](https://github.com/Husnaiin/Fire_Detector)** | Training, evaluation and edge-export of the YOLOv5n fire detection model that runs onboard |
+| Husnaiin/Guardian | This repository. Flight system — ground station, onboard backend, navigation, flight-controller integration and payload control. |
+| [Husnaiin/Fire_Detector](https://github.com/Husnaiin/Fire_Detector) | Training, evaluation and edge export of the fire detection model that runs onboard |
 | [Guardian case study](https://www.devlitix.com/case-study/guardian) | System-level write-up, architecture and results |
 
-The two repositories describe **one aircraft.** History is split so the model's training lineage and the flight software's lineage stay independently readable — not because the systems are separable.
+The two repositories describe one aircraft. History is split so that the model's training lineage and the flight software's lineage stay independently readable, not because the systems are separable.
 
 ---
 
 ## Acknowledgements
 
-- [Pixhawk](https://pixhawk.org/) / [MAVLink](https://mavlink.io/) / [pymavlink](https://github.com/ArduPilot/pymavlink) — flight control and protocol
-- [Intel RealSense SDK](https://github.com/IntelRealSense/librealsense) — depth + colour streaming
-- [OpenCV](https://opencv.org/) — SIFT, optical flow, image processing
-- [ONNX Runtime](https://onnxruntime.ai/) — CPU inference on the edge
-- [pigpio](https://abyz.me.uk/rpi/pigpio/) — DMA-timed hardware PWM
-- [Flutter](https://flutter.dev/) & [Firebase](https://firebase.google.com/) — cross-platform ground station
+- [Pixhawk](https://pixhawk.org/) and [MAVLink](https://mavlink.io/) for flight control and protocol
+- [Intel RealSense](https://github.com/IntelRealSense/librealsense) for depth and colour streaming
+- [OpenCV](https://opencv.org/) for feature detection, optical flow and image processing
+- [ONNX Runtime](https://onnxruntime.ai/) for edge inference
+- [pigpio](https://abyz.me.uk/rpi/pigpio/) for hardware-timed PWM
+- [Flutter](https://flutter.dev/) and [Firebase](https://firebase.google.com/) for the cross-platform ground station
 
 ---
 
 ## License
 
-Released under the **MIT License**.
+Released under the MIT License.
 
-The onboard fire detection model is derived from Ultralytics YOLOv5 (**AGPL-3.0**) and a **CC BY 4.0** dataset — review both before commercial deployment. See [Fire_Detector](https://github.com/Husnaiin/Fire_Detector) for details.
+The onboard fire detection model derives from tooling licensed AGPL-3.0 and a dataset licensed CC BY 4.0. Review both before commercial deployment; see [Fire_Detector](https://github.com/Husnaiin/Fire_Detector) for details.
 
 ---
 
 <p align="center">
 <i>No GPS. No GPU. No second chance.</i><br>
-<sub><a href="https://www.devlitix.com/case-study/guardian">Case study</a> · <a href="https://github.com/Husnaiin/Fire_Detector">Fire detection model</a></sub>
+<sub><a href="https://www.devlitix.com/case-study/guardian">Case study</a> &middot; <a href="https://github.com/Husnaiin/Fire_Detector">Fire detection model</a></sub>
 </p>
