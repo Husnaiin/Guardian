@@ -19,6 +19,33 @@ Guardian flies, localizes, detects fire and delivers suppressant without a singl
 
 ---
 
+## Contents
+
+- [The problem](#the-problem)
+- [Results](#results)
+- [Capabilities](#capabilities)
+- [System architecture](#system-architecture)
+- [How a mission runs](#how-a-mission-runs)
+- [GPS-denied navigation](#gps-denied-navigation)
+- [Onboard fire detection](#onboard-fire-detection)
+- [Payload release and safety gating](#payload-release-and-safety-gating)
+- [Communication](#communication)
+- [Mobile ground station](#mobile-ground-station)
+- [Hardware](#hardware)
+- [Repository layout](#repository-layout)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Safety](#safety)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Related repositories](#related-repositories)
+- [License](#license)
+
+---
+
 ## The problem
 
 Firefighting drones are sold on the promise of removing people from the most dangerous part of the job. Then they meet reality.
@@ -238,21 +265,91 @@ The `guardian_app/` directory contains an earlier nested copy of the Flutter pro
 
 ---
 
-## Getting started
+## Prerequisites
 
-**Mobile application.** Clone the repository, fetch Flutter dependencies and run against a connected device. The guided setup scripts handle dependency checks and device selection on both Unix and Windows hosts. Firebase requires your own project credentials for each platform, with email, Google and Facebook providers enabled in the console.
+**For the mobile application.** The Flutter SDK on a recent stable channel with Dart 3.0 or newer, plus the platform toolchain for whichever target you build — Android Studio and its SDK, or Xcode for iOS. A Firebase project of your own is required; the credentials committed here will not authenticate against it.
 
-**Onboard backend.** Install the Python dependencies on the Raspberry Pi along with the flight-controller, camera, vision and inference runtimes, and start the hardware timing daemon used for servo control. Deploy the exported detection model from the [Fire_Detector](https://github.com/Husnaiin/Fire_Detector) repository to the model path the backend expects.
+**For the onboard backend.** A Raspberry Pi 4B running a 64-bit OS, Python 3.9 or newer, a depth camera, and a Pixhawk flight controller reachable over serial. The backend degrades gracefully: if the camera or flight controller is absent it enters simulation mode, so the application and protocol can be developed entirely on a desktop before any hardware exists.
 
-**Launch.** Starting the command server brings up the full stack and begins listening for client connections. The navigation and detection stack can also be launched directly for bench testing, with navigation, detection, payload control and flight-controller connection each independently enabled or disabled. If the vision or flight-controller hardware is unavailable the backend falls back to simulation mode automatically, so the application and protocol can be developed on a desktop.
+**For the field nodes.** An ESP8266 or ESP32 with the Arduino toolchain and four momentary buttons.
 
-**Field nodes.** Flash the node firmware to a wireless microcontroller, configure it with the aircraft's hotspot credentials and server address, and wire zone trigger buttons to the designated pins.
+---
+
+## Installation
+
+### Mobile application
+
+    git clone https://github.com/Husnaiin/Guardian.git
+    cd Guardian
+    flutter pub get
+    flutter devices
+
+Guided setup scripts are provided for both host families and will check the toolchain, install dependencies and offer device selection:
+
+    ./setup.sh        # Linux and macOS
+    setup.bat         # Windows
+
+Supply your own Firebase credentials — `google-services.json` for Android and `GoogleService-Info.plist` for iOS — and enable the email, Google and Facebook sign-in providers in the Firebase console.
+
+### Onboard backend
+
+On the Raspberry Pi:
+
+    pip install -r pi_backend/requirements.txt
+    pip install pymavlink pyrealsense2 opencv-python numpy onnxruntime pigpio
+
+Start the timing daemon used for hardware-timed servo pulses, and enable it at boot so the payload subsystem survives a power cycle:
+
+    sudo pigpiod
+    sudo systemctl enable pigpiod
+
+Deploy the exported detection model from the [Fire_Detector](https://github.com/Husnaiin/Fire_Detector) repository:
+
+    scp best.onnx guardian@<pi-address>:/home/guardian/Desktop/capture_depth/fire_model/best.onnx
+
+---
+
+## Usage
+
+### Running the aircraft
+
+Starting the command server brings up the full stack — navigation, detection, payload control and the flight-controller link — and listens for client connections:
+
+    python pi_backend/drone_controller.py
+
+### Bench testing
+
+The vision and flight stack can be launched directly, with each subsystem independently enabled, which is how you should verify a build before it flies:
+
+    python pi_backend/vio_sender.py \
+        --pixhawk true --pixhawk_device /dev/ttyACM0 --pixhawk_baud 921600 \
+        --fire_detection true --fire_threshold 0.50 --fire_fps 10 \
+        --servo_enable true --servo_gpio 18 --servo_persist_frames 10
+
+Test the payload release with the flight-controller link disabled and no suppressant loaded:
+
+    python pi_backend/vio_sender.py --pixhawk false --fire_detection true --servo_enable true
+
+Verify navigation in isolation, with detection off, to rule the detector out when diagnosing pose problems:
+
+    python pi_backend/vio_sender.py --fire_detection false --visualize_odom true
+
+### Running the application
+
+    flutter run                       # against a connected device
+    flutter build apk --release       # Android release build
+
+On first launch, sign in, then connect to the aircraft's wireless hotspot and enter the server address. Administrators receive full flight authority; external clients can report fires and observe status only.
+
+### Field nodes
+
+Flash `pi_backend/fire_client.ino` to the microcontroller with the Arduino IDE, setting the hotspot credentials and server address to match the aircraft, and wire zone trigger buttons to pins D1 through D4. The node rejoins the network and reconnects on its own if the link drops.
 
 ---
 
 ## Configuration
 
-Runtime behaviour is configured through command-line options on the onboard stack, grouped by subsystem.
+Runtime behaviour is set through command-line options on the onboard stack, grouped by subsystem.
 
 | Group | Controls |
 |---|---|
@@ -262,6 +359,21 @@ Runtime behaviour is configured through command-line options on the onboard stac
 | Diagnostics | Odometry and detection visualization, for bench use only |
 
 The inference rate is the primary load governor. Raising it spends headroom the navigation loop depends on, and it should be treated as a flight-safety parameter rather than a tuning knob.
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause and resolution |
+|---|---|
+| Backend reports simulation mode | The camera or flight controller could not be initialized. Check the serial device path and that the camera is enumerated. |
+| No connection to the flight controller | Wrong serial device or baud rate, or the port is held by another process such as a ground-control station. |
+| Payload never actuates | The timing daemon is not running, or the detection run required by the persistence gate is never sustained. Start the daemon and verify detections on the bench first. |
+| Servo pulses jitter | Software timing is being used in place of hardware timing. Confirm the daemon is running rather than falling back. |
+| Position drifts or jumps | Insufficient visual texture in the scene, or degraded depth. Verify the scene has trackable features and enable inertial cross-validation. |
+| Aircraft refuses to hold position | The state estimator has not converged on the vision source. Check estimator health before arming rather than after. |
+| Navigation degrades once detection is enabled | The inference rate is set too high, or a visualization option is enabled in flight. |
+| Application connects then drops | Background execution is being suspended by the platform. Confirm the foreground service is permitted to run. |
 
 ---
 
@@ -287,6 +399,16 @@ This is a flying machine that carries a payload and actuates hardware from a mod
 - Multi-drone coordination across a shared command server
 - Onboard mission recording with post-flight replay in the application
 - Transport encryption on the control channel
+
+---
+
+## Contributing
+
+Contributions are welcome. Open an issue before starting substantial work so the approach can be discussed first.
+
+Two constraints govern changes to the onboard stack. Anything running on the companion computer shares a processor with the navigation loop, so a contribution that adds continuous work must account for what it costs that loop — the aircraft has no headroom to spare. And anything touching arming, dispatch or payload release is flight-safety code: it needs bench verification with the flight-controller link disabled and no payload loaded, and that verification should be described in the pull request.
+
+Changes to the application should preserve the role boundary. External clients report and observe; only administrators fly the aircraft, and that separation is a safety property rather than a UI convention.
 
 ---
 
